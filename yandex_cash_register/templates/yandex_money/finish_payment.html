@@ -1,0 +1,12 @@
+<html>
+<head></head>
+<body>
+<form name="payment_data_form" method="post" style="display: none;">
+    {% csrf_token %}
+    {{ form.as_p }}
+</form>
+<script>
+    document.payment_data_form.submit();
+</script>
+</body>
+</html>
