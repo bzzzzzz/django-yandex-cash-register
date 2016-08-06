@@ -21,7 +21,7 @@ class Migration(migrations.Migration):
             name='Payment',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('order_id', models.CharField(editable=False, max_length=50, unique=True, verbose_name='Номер заказа')),
+                ('order_id', models.CharField(db_index=True, editable=False, max_length=50, unique=True, verbose_name='Номер заказа')),
                 ('customer_id', models.UUIDField(default=uuid.uuid4, editable=False, unique=True, verbose_name='Номер плательщика')),
                 ('state', models.CharField(choices=[('created', 'Created'), ('processed', 'Processed'), ('success', 'Success'), ('fail', 'Fail')], default='created', editable=False, max_length=16, verbose_name='Статус')),
                 ('payment_type', models.CharField(choices=[('AB', 'Альфа-Клик'), ('AC', 'Банковская карта'), ('GP', 'Наличные через терминал'), ('MA', 'MasterPass'), ('MC', 'Счет мобильного телефона'), ('PB', 'Интернет-банк Промсвязьбанка'), ('PC', 'Кошелек Яндекс.Денег'), ('SB', 'Сбербанк Онлайн'), ('WM', 'Кошелек WebMoney'), ('QS', 'QiWi кошелёк')], default='PC', editable=False, max_length=2, verbose_name='Способ платежа')),

@@ -16,7 +16,7 @@ APP_DIR = os.path.abspath(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 sys.path.insert(0, APP_DIR)
 
-# Minimum settings required for django-simple-contact-form to work.
+# Minimum settings required for django-yandex-cash-register to work.
 SETTINGS_DICT = {
     'BASE_DIR': APP_DIR,
     'INSTALLED_APPS': (
@@ -43,7 +43,7 @@ SETTINGS_DICT = {
     'DEFAULT_FROM_EMAIL': 'contact@example.com',
     'MANAGERS': [('Manager', 'noreply@example.com')],
 
-    'YANDEX_CR_SUCCESS_URL': '',
+    'YANDEX_CR_SHOP_DOMAIN': 'http://example.com',
     'YANDEX_CR_SCID': 1,
     'YANDEX_CR_SHOP_ID': 2,
     'YANDEX_CR_SHOP_PASSWORD': '3',

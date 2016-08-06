@@ -4,12 +4,13 @@ from __future__ import absolute_import, unicode_literals
 import uuid
 
 from django.conf import settings
+from django.core.urlresolvers import reverse
 from django.db import models
 from django.utils.encoding import python_2_unicode_compatible
 from django.utils.timezone import now
 
 from . import conf
-from .forms import PaymentForm
+from .forms import PaymentForm, FinalPaymentStateForm
 from .signals import payment_process, payment_success, payment_fail
 
 
@@ -37,7 +38,7 @@ class Payment(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True,
                              verbose_name='Пользователь')
     order_id = models.CharField('Номер заказа', max_length=50, unique=True,
-                                editable=False)
+                                editable=False, db_index=True)
     customer_id = models.UUIDField('Номер плательщика', unique=True,
                                    default=uuid.uuid4, editable=False)
     state = models.CharField('Статус', max_length=16, choices=STATE_CHOICES,
@@ -134,10 +135,22 @@ class Payment(models.Model):
         payment_fail.send(sender=self)
 
     def form(self):
-        return PaymentForm(initial={
+        initial = {
             'orderNumber': self.order_id,
             'sum': self.order_sum,
             'customerNumber': self.customer_id,
             'cps_email': self.cps_email,
             'cps_phone': self.cps_phone,
-        })
+            'paymentType': self.payment_type,
+        }
+        if conf.SUCCESS_URL is None:
+            url = reverse('yandex_cash_register:money_payment_finish')
+            initial['shopSuccessURL'] = '{}{}?cr_action={}&cr_order_number={}'.format(
+                conf.SHOP_DOMAIN, url, FinalPaymentStateForm.ACTION_CONFIRM,
+                self.order_id
+            )
+            initial['shopFailURL'] = '{}{}?cr_action={}&cr_order_number={}'.format(
+                conf.SHOP_DOMAIN, url, FinalPaymentStateForm.ACTION_FAIL,
+                self.order_id
+            )
+        return PaymentForm(initial=initial)

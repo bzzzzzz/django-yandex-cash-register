@@ -14,8 +14,12 @@ else:
 TARGET = MONEY_URL + '/eshop.xml'
 
 LOCAL_URL = getattr(settings, 'YANDEX_CR_LOCAL_URL', 'kassa')
-SUCCESS_URL = getattr(settings, 'YANDEX_CR_SUCCESS_URL')
+SUCCESS_URL = getattr(settings, 'YANDEX_CR_SUCCESS_URL', None)
 FAIL_URL = getattr(settings, 'YANDEX_CR_FAIL_URL', SUCCESS_URL)
+if SUCCESS_URL is None:
+    SHOP_DOMAIN = getattr(settings, 'YANDEX_CR_SHOP_DOMAIN')
+else:
+    SHOP_DOMAIN = getattr(settings, 'YANDEX_CR_SHOP_DOMAIN', None)
 
 SCID = getattr(settings, 'YANDEX_CR_SCID')
 SHOP_ID = getattr(settings, 'YANDEX_CR_SHOP_ID')
