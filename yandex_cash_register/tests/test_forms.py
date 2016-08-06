@@ -10,7 +10,7 @@ from django.test import TestCase
 from django import forms
 
 from ..forms import ShopIdForm, PaymentForm, readonly_widget, \
-    OrderProcessingForm
+    PaymentProcessingForm
 from ..models import Payment
 from .. import conf
 
@@ -148,7 +148,7 @@ class OrderProcessingFormTestCase(TestCase):
             'shopId': TEST_SHOP_ID, 'orderNumber': self.payment.order_id,
             'customerNumber': self.payment.customer_id,
             'paymentType': conf.PAYMENT_TYPE_YANDEX_MONEY,
-            'action': OrderProcessingForm.ACTION_CHECK,
+            'action': PaymentProcessingForm.ACTION_CHECK,
             'md5': 'D3DFFF43EC59431056C6B1B63290CF63',
             'invoiceId': '123456', 'orderSumAmount': '1000.0',
             'orderSumCurrencyPaycash': '1',
@@ -159,7 +159,7 @@ class OrderProcessingFormTestCase(TestCase):
         if empty_fields is not None:
             for field in empty_fields:
                 del data[field]
-        return OrderProcessingForm(data)
+        return PaymentProcessingForm(data)
 
     def test_all_correct(self):
         form = self._get_form()
@@ -205,30 +205,30 @@ class OrderProcessingFormTestCase(TestCase):
     def test_error_values(self):
         form = self._get_form(md5='DE51FC39AAFB023A4AA8984083BCAE03')
         self.assertFalse(form.is_valid())
-        self.assertEqual(form.error_code, OrderProcessingForm.ERROR_CODE_MD5)
+        self.assertEqual(form.error_code, PaymentProcessingForm.ERROR_CODE_MD5)
         self.assertIsNotNone(form.error_message)
 
         form = self._get_form(empty_fields=['md5'])
         self.assertFalse(form.is_valid())
-        self.assertEqual(form.error_code, OrderProcessingForm.ERROR_CODE_MD5)
+        self.assertEqual(form.error_code, PaymentProcessingForm.ERROR_CODE_MD5)
         self.assertIsNotNone(form.error_message)
 
         form = self._get_form(empty_fields=['orderNumber'])
         self.assertFalse(form.is_valid())
         self.assertEqual(form.error_code,
-                         OrderProcessingForm.ERROR_CODE_UNKNOWN_ORDER)
+                         PaymentProcessingForm.ERROR_CODE_UNKNOWN_ORDER)
         self.assertIsNotNone(form.error_message)
 
         form = self._get_form(orderNumber='asd')
         self.assertFalse(form.is_valid())
         self.assertEqual(form.error_code,
-                         OrderProcessingForm.ERROR_CODE_UNKNOWN_ORDER)
+                         PaymentProcessingForm.ERROR_CODE_UNKNOWN_ORDER)
         self.assertIsNotNone(form.error_message)
 
         form = self._get_form(empty_fields=['customerNumber'])
         self.assertFalse(form.is_valid())
         self.assertEqual(form.error_code,
-                         OrderProcessingForm.ERROR_CODE_UNKNOWN_ORDER)
+                         PaymentProcessingForm.ERROR_CODE_UNKNOWN_ORDER)
         self.assertIsNotNone(form.error_message)
 
         for field in ('orderSumAmount', 'invoiceId', 'orderSumCurrencyPaycash',
@@ -238,5 +238,5 @@ class OrderProcessingFormTestCase(TestCase):
             form = self._get_form(empty_fields=[field])
             self.assertFalse(form.is_valid())
             self.assertEqual(form.error_code,
-                             OrderProcessingForm.ERROR_CODE_INTERNAL)
+                             PaymentProcessingForm.ERROR_CODE_INTERNAL)
             self.assertIsNotNone(form.error_message)

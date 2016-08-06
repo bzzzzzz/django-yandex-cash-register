@@ -17,7 +17,7 @@ from django.views.generic import FormView
 from lxml import etree
 from lxml.builder import E
 
-from .forms import OrderProcessingForm, WeakOrderStateForm
+from .forms import PaymentProcessingForm, FinalPaymentStateForm
 from .models import Payment
 from . import conf
 
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 class BaseFormView(FormView):
-    form_class = OrderProcessingForm
+    form_class = PaymentProcessingForm
     accepted_action = None
 
     @method_decorator(csrf_exempt)
@@ -54,7 +54,7 @@ class BaseFormView(FormView):
 
     def form_invalid(self, form):
         """
-        :type form: yandex_money.forms.OrderProcessingForm
+        :type form: yandex_cash_register.forms.PaymentProcessingForm
         """
         logger.info('Error when validating payment form')
         logger.info('Form data: %s', dict(form.cleaned_data))
@@ -77,14 +77,14 @@ class BaseFormView(FormView):
 
     def form_valid(self, form):
         """
-        :type form: yandex_money.forms.OrderProcessingForm
+        :type form: yandex_cash_register.forms.PaymentProcessingForm
         """
         logger.info('Payment form validated correctly')
         logger.info('Form data: %s', dict(form.cleaned_data))
 
         action = form.cleaned_data['action']
         if action != self.accepted_action:
-            form.set_error(OrderProcessingForm.ERROR_CODE_UNKNOWN_ORDER,
+            form.set_error(PaymentProcessingForm.ERROR_CODE_UNKNOWN_ORDER,
                            'Неожиданный параметр')
             return self.form_invalid(form)
 
@@ -92,10 +92,13 @@ class BaseFormView(FormView):
 
         payment = form.payment_obj
         try:
+            if payment.is_completed:
+                raise RuntimeError('Payment is already completed')
             self.process(payment, form.cleaned_data)
+
             logger.info('Successful request to payment #%s', payment.order_id)
 
-            # Order is important, they say
+            # Key order is important, they say
             response_dict = OrderedDict()
             if payment.completed is None:
                 response_dict['performedDatetime'] = payment.performed.isoformat()
@@ -107,7 +110,7 @@ class BaseFormView(FormView):
         except Exception:
             msg = 'Error when processing payment #%s' % order_num
             logger.warn(msg, exc_info=True)
-            form.set_error(OrderProcessingForm.ERROR_CODE_INTERNAL,
+            form.set_error(PaymentProcessingForm.ERROR_CODE_INTERNAL,
                            'Ошибка обработки заказа')
             return self.form_invalid(form)
 
@@ -115,18 +118,18 @@ class BaseFormView(FormView):
 
     def process(self, payment, data):
         """
-        :type payment: yandex_money.models.Payment
+        :type payment: yandex_cash_register.models.Payment
         :type data: dict[str]
         """
         raise NotImplementedError()
 
 
 class CheckOrderView(BaseFormView):
-    accepted_action = OrderProcessingForm.ACTION_CHECK
+    accepted_action = PaymentProcessingForm.ACTION_CHECK
 
     def process(self, payment, data):
         """
-        :type payment: yandex_money.models.Payment
+        :type payment: yandex_cash_register.models.Payment
         :type data: dict[str]
         """
         logger.info('Request to check payment #%s', payment.order_id)
@@ -143,11 +146,11 @@ class CheckOrderView(BaseFormView):
 
 
 class PaymentAvisoView(BaseFormView):
-    accepted_action = OrderProcessingForm.ACTION_CPAYMENT
+    accepted_action = PaymentProcessingForm.ACTION_CPAYMENT
 
     def process(self, payment, data):
         """
-        :type payment: yandex_money.models.Payment
+        :type payment: yandex_cash_register.models.Payment
         :type data: dict[str]
         """
         logger.info('Request to confirm payment #%s', payment.order_id)
@@ -156,8 +159,8 @@ class PaymentAvisoView(BaseFormView):
 
 
 class PaymentFinishView(FormView):
-    form_class = WeakOrderStateForm
-    template_name = 'yandex_money/finish_payment.html'
+    form_class = FinalPaymentStateForm
+    template_name = 'yandex_cash_register/finish_payment.html'
 
     @method_decorator(csrf_exempt)
     @method_decorator(transaction.atomic)
@@ -169,7 +172,7 @@ class PaymentFinishView(FormView):
         if not request.META.get(
                 'HTTP_REFERER', '').startswith(conf.MONEY_URL) and \
                 not settings.DEBUG:
-            return redirect('/')
+            return HttpResponseNotAllowed(['POST'])
         return super(PaymentFinishView, self).get(request, *args, **kwargs)
 
     def get_initial(self):
@@ -178,8 +181,13 @@ class PaymentFinishView(FormView):
         return super(PaymentFinishView, self).get_initial()
 
     @staticmethod
-    def _generate_response(payment, success):
-        if not success and not payment.is_completed:
+    def _generate_response(payment, success=None):
+        """
+        :type payment: yandex_cash_register.models.Payment
+        :type success: bool
+        """
+        # If success is defined as False and payment is not completed - fail it
+        if success is not None and not success and not payment.is_completed:
             logger.info('Setting state to fail, order #%s', payment.order_id)
             payment.fail()
 
@@ -188,17 +196,28 @@ class PaymentFinishView(FormView):
 
         if order is None:
             return redirect('/')
-        url = order.get_payment_complete_url(success)
+        if success is None or payment.is_completed:
+            url = order.get_absolute_url()
+        else:
+            url = order.get_payment_complete_url(success)
         return redirect(url)
 
     def form_valid(self, form):
+        """
+        :type form: yandex_cash_register.forms.FinalPaymentStateForm
+        """
         logger.info('Form is valid: %s', dict(form.cleaned_data))
-        action = form.cleaned_data['action']
+        action = form.cleaned_data['cr_action']
         payment = form.payment_obj
+        if payment is None:
+            return redirect('/')
+
+        if not payment.is_started:
+            return self._generate_response(payment)
         if payment.state in (Payment.STATE_SUCCESS, Payment.STATE_FAIL):
             success = payment.state == Payment.STATE_SUCCESS
         else:
-            if action == OrderProcessingForm.ACTION_WEAK_CONFIRM:
+            if action == form.ACTION_CONFIRM:
                 success = True
             else:
                 success = False
@@ -208,6 +227,6 @@ class PaymentFinishView(FormView):
         logger.info('Form is invalid: %s', dict(form.cleaned_data))
         payment = form.payment_obj
         if payment is not None:
-            return self._generate_response(payment, False)
+            return self._generate_response(payment)
         else:
             return redirect('/')

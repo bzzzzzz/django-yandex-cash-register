@@ -47,7 +47,9 @@ SETTINGS_DICT = {
     'YANDEX_CR_SCID': 1,
     'YANDEX_CR_SHOP_ID': 2,
     'YANDEX_CR_SHOP_PASSWORD': '3',
-    'YANDEX_CR_ORDER_MODEL': 'testapp.TestOrder'
+    'YANDEX_CR_ORDER_MODEL': 'testapp.TestOrder',
+
+    'DEBUG': False
 }
 
 

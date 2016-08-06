@@ -7,6 +7,7 @@ from uuid import UUID
 
 from django.test import TestCase, Client, override_settings
 
+from ..forms import FinalPaymentStateForm
 from ..models import Payment
 from ..views import CheckOrderView, PaymentAvisoView, PaymentFinishView
 from ..signals import payment_fail, payment_process, payment_success
@@ -35,7 +36,7 @@ class BaseClientMixin(object):
                 del data[field]
         return data
 
-    def _req(self, data=None, headers=None):
+    def _req(self, data=None, headers=None, code=200):
         headers = headers or {}
         c = Client()
         if data:
@@ -44,6 +45,7 @@ class BaseClientMixin(object):
             response = c.get(self._get_url(), **headers)
         self.assertEqual(response.resolver_match.func.__name__,
                          self.VIEW_CLASS.as_view().__name__)
+        self.assertEqual(response.status_code, code)
         return response
 
     def _check_signals(self, process, success, fail):
@@ -71,8 +73,8 @@ class BaseViewTestCase(BaseClientMixin):
         }
 
     def test_get_response(self):
-        response = self._req()
-        self.assertEqual(response.status_code, 405)
+        """GET request returns Not Allowed code and changes nothing"""
+        self._req(code=405)
 
         payment = Payment.objects.get(pk=self.payment.id)
         for f in payment._meta.fields:
@@ -105,8 +107,10 @@ class CheckOrderViewTestCase(BaseViewTestCase, TestCase):
         process_mock.reset_mock()
 
     def test_correct(self):
+        """Valid checkOrder request sets required params and returns correct
+        response
+        """
         response = self._req(self._get_data())
-        self.assertEqual(response.status_code, 200)
 
         payment = Payment.objects.get(pk=self.payment.id)
         expected_content = '<?xml version=\'1.0\' encoding=\'UTF-8\'?>\n' \
@@ -118,6 +122,10 @@ class CheckOrderViewTestCase(BaseViewTestCase, TestCase):
         self.assertEqual(response.content, expected_content.encode('utf-8'))
 
         self.assertIsNone(payment.completed)
+        self.assertIsNotNone(payment.performed)
+        self.assertTrue(payment.is_started)
+        self.assertFalse(payment.is_completed)
+        self.assertFalse(payment.is_payed)
         self.assertEqual(payment.invoice_id, self.INVOICE_ID)
         self.assertEqual(payment.state, Payment.STATE_PROCESSED)
         self.assertEqual(payment.shop_sum, Decimal('975.3'))
@@ -127,14 +135,21 @@ class CheckOrderViewTestCase(BaseViewTestCase, TestCase):
         self._check_signals(1, 0, 0)
 
     def test_check_twice(self):
+        """Valid checkOrder request fails payment if performed twice"""
         self.test_correct()
 
         response = self._req(self._get_data())
-        self.assertEqual(response.status_code, 200)
 
         payment = Payment.objects.get(pk=self.payment.id)
-        self.assertEqual(payment.state, Payment.STATE_FAIL)
+
         self.assertIsNotNone(payment.completed)
+        self.assertIsNotNone(payment.performed)
+        self.assertTrue(payment.is_completed)
+        self.assertFalse(payment.is_payed)
+        self.assertEqual(payment.invoice_id, self.INVOICE_ID)
+        self.assertEqual(payment.shop_sum, Decimal('975.3'))
+        self.assertEqual(payment.payer_code, '12345678901234567890')
+
         expected_content = '<?xml version=\'1.0\' encoding=\'UTF-8\'?>\n' \
                            '<checkOrderResponse code="200" ' \
                            'message="Ошибка обработки заказа"/>'
@@ -144,13 +159,15 @@ class CheckOrderViewTestCase(BaseViewTestCase, TestCase):
         self._check_signals(1, 0, 1)
 
     def test_invalid_form(self):
+        """Invalid checkOrder request fails payment and returns error response
+        """
         response = self._req(self._get_data(md5='A' * 32))
-        self.assertEqual(response.status_code, 200)
 
         payment = Payment.objects.get(pk=self.payment.id)
 
         self.assertIsNotNone(payment.completed)
-        self.assertEqual(payment.state, Payment.STATE_FAIL)
+        self.assertTrue(payment.is_completed)
+        self.assertFalse(payment.is_payed)
 
         expected_content = '<?xml version=\'1.0\' encoding=\'UTF-8\'?>\n' \
                            '<checkOrderResponse code="1" ' \
@@ -161,16 +178,18 @@ class CheckOrderViewTestCase(BaseViewTestCase, TestCase):
         self._check_signals(0, 0, 1)
 
     def test_wrong_action_in_process(self):
+        """Invalid checkOrder request fails payment and returns error response
+        """
         response = self._req(
             self._get_data(action='paymentAviso',
                            md5='A436AD4F03575E9FD6167EC3750110D9')
         )
-        self.assertEqual(response.status_code, 200)
 
         payment = Payment.objects.get(pk=self.payment.id)
 
         self.assertIsNotNone(payment.completed)
-        self.assertEqual(payment.state, Payment.STATE_FAIL)
+        self.assertTrue(payment.is_completed)
+        self.assertFalse(payment.is_payed)
 
         expected_content = '<?xml version=\'1.0\' encoding=\'UTF-8\'?>\n' \
                            '<checkOrderResponse code="100" ' \
@@ -181,14 +200,19 @@ class CheckOrderViewTestCase(BaseViewTestCase, TestCase):
         self._check_signals(0, 0, 1)
 
     def test_failed_payment(self):
+        """Valid checkOrder request to failed payment and returns error
+        response and don't change state
+        """
         self.payment.fail()
         self.assertEqual(fail_mock.call_count, 1)
 
         response = self._req(self._get_data())
-        self.assertEqual(response.status_code, 200)
 
         payment = Payment.objects.get(pk=self.payment.id)
-        self.assertEqual(payment.state, Payment.STATE_FAIL)
+
+        self.assertIsNotNone(payment.completed)
+        self.assertTrue(payment.is_completed)
+        self.assertFalse(payment.is_payed)
 
         expected_content = '<?xml version=\'1.0\' encoding=\'UTF-8\'?>\n' \
                            '<checkOrderResponse code="200" ' \
@@ -199,16 +223,22 @@ class CheckOrderViewTestCase(BaseViewTestCase, TestCase):
         self._check_signals(0, 0, 1)
 
     def test_succeeded_payment(self):
+        """Valid checkOrder request to completed payment and returns error
+        response and don't change state
+        """
         self.payment.process()
         self.payment.complete()
         self.assertEqual(process_mock.call_count, 1)
         self.assertEqual(success_mock.call_count, 1)
 
         response = self._req(self._get_data())
-        self.assertEqual(response.status_code, 200)
 
         payment = Payment.objects.get(pk=self.payment.id)
-        self.assertEqual(payment.state, Payment.STATE_SUCCESS)
+
+        self.assertIsNotNone(payment.performed)
+        self.assertIsNotNone(payment.completed)
+        self.assertTrue(payment.is_completed)
+        self.assertTrue(payment.is_payed)
 
         expected_content = '<?xml version=\'1.0\' encoding=\'UTF-8\'?>\n' \
                            '<checkOrderResponse code="200" ' \
@@ -247,8 +277,10 @@ class PaymentAvisoViewTestCase(BaseViewTestCase, TestCase):
         process_mock.reset_mock()
 
     def test_correct(self):
+        """PaymentAviso correct request should make payment completed, set it's
+        state to success and fire success signal
+        """
         response = self._req(self._get_data())
-        self.assertEqual(response.status_code, 200)
 
         payment = Payment.objects.get(pk=self.payment.id)
         expected_content = '<?xml version=\'1.0\' encoding=\'UTF-8\'?>\n' \
@@ -259,23 +291,65 @@ class PaymentAvisoViewTestCase(BaseViewTestCase, TestCase):
                     TEST_SHOP_ID)
         self.assertEqual(response.content, expected_content.encode('utf-8'))
 
-        self.assertIsNotNone(payment.completed)
-        self.assertEqual(payment.state, Payment.STATE_SUCCESS)
+        self.assertTrue(payment.completed)
+        self.assertTrue(payment.is_payed)
         # Проверяем что отправились правильные сигналы
         self._check_signals(0, 1, 0)
 
-    def test_triple(self):
-        for i in range(3):
-            self.test_correct()
+    def _test_already_completed(self, state):
+        response = self._req(self._get_data())
+
+        expected_content = '<?xml version=\'1.0\' encoding=\'UTF-8\'?>\n' \
+                           '<paymentAvisoResponse code="200" ' \
+                           'message="Ошибка обработки заказа"/>'
+        self.assertEqual(response.content, expected_content.encode('utf-8'))
+
+        payment = Payment.objects.get(pk=self.payment.id)
+        self.assertTrue(payment.is_completed)
+        self.assertEqual(payment.state, state)
+        # Проверяем что отправились правильные сигналы
+        self._check_signals(0, 0, 0)
+
+    def test_already_completed(self):
+        """PaymentAviso request to a completed payment should return an error
+        and should not change payment state. No signals are fired
+        """
+        self.payment.complete()
+        self.assertEqual(success_mock.call_count, 1)
+        success_mock.reset_mock()
+
+        self._test_already_completed(Payment.STATE_SUCCESS)
+
+    def test_already_failed(self):
+        """PaymentAviso request to a failed payment should return an error
+        and should not change payment state. No signals are fired
+        """
+        self.payment.fail()
+        self.assertEqual(fail_mock.call_count, 1)
+        fail_mock.reset_mock()
+
+        self._test_already_completed(Payment.STATE_FAIL)
+
+    def test_double_correct(self):
+        self.test_correct()
+        success_mock.reset_mock()
+
+        self._test_already_completed(Payment.STATE_SUCCESS)
+
+    def test_double_fail(self):
+        self.test_invalid_form()
+        fail_mock.reset_mock()
+
+        self._test_already_completed(Payment.STATE_FAIL)
 
     def test_invalid_form(self):
+        """Invalid PaymentAviso request fails payment"""
         response = self._req(self._get_data(md5='A' * 32))
-        self.assertEqual(response.status_code, 200)
 
         payment = Payment.objects.get(pk=self.payment.id)
 
-        self.assertIsNotNone(payment.completed)
-        self.assertEqual(payment.state, Payment.STATE_FAIL)
+        self.assertTrue(payment.completed)
+        self.assertFalse(payment.is_payed)
 
         expected_content = '<?xml version=\'1.0\' encoding=\'UTF-8\'?>\n' \
                            '<paymentAvisoResponse code="1" ' \
@@ -286,16 +360,16 @@ class PaymentAvisoViewTestCase(BaseViewTestCase, TestCase):
         self._check_signals(0, 0, 1)
 
     def test_wrong_action_in_process(self):
+        """PaymentAviso request with wrong action fails payment"""
         response = self._req(
             self._get_data(action='checkOrder',
                            md5='54B30079ACF352701B9CA83A3AC7F640')
         )
-        self.assertEqual(response.status_code, 200)
 
         payment = Payment.objects.get(pk=self.payment.id)
 
-        self.assertIsNotNone(payment.completed)
-        self.assertEqual(payment.state, Payment.STATE_FAIL)
+        self.assertTrue(payment.completed)
+        self.assertFalse(payment.is_payed)
 
         expected_content = '<?xml version=\'1.0\' encoding=\'UTF-8\'?>\n' \
                            '<paymentAvisoResponse code="100" ' \
@@ -305,40 +379,10 @@ class PaymentAvisoViewTestCase(BaseViewTestCase, TestCase):
         # Проверяем что отправились правильные сигналы
         self._check_signals(0, 0, 1)
 
-    def test_failed_payment(self):
-        self.payment.fail()
-        self.assertEqual(fail_mock.call_count, 1)
-        fail_mock.reset_mock()
-
-        self.test_correct()
-
-    def test_failed_and_unprocessed_payment(self):
-        self.payment.fail()
-        self.assertEqual(fail_mock.call_count, 1)
-        fail_mock.reset_mock()
-        self.payment.performed = None
-        self.payment.save()
-
-        response = self._req(self._get_data())
-        self.assertEqual(response.status_code, 200)
-
-        payment = Payment.objects.get(pk=self.payment.id)
-
-        self.assertIsNotNone(payment.completed)
-        self.assertEqual(payment.state, Payment.STATE_FAIL)
-
-        expected_content = '<?xml version=\'1.0\' encoding=\'UTF-8\'?>\n' \
-                           '<paymentAvisoResponse code="200" ' \
-                           'message="Ошибка обработки заказа"/>'
-        self.assertEqual(response.content, expected_content.encode('utf-8'))
-
-        # Проверяем что отправились правильные сигналы
-        self._check_signals(0, 0, 0)
-
 
 class PaymentFinishViewTestCase(BaseClientMixin, TestCase):
-    ACTION_SUCCESS = 'PaymentSuccess'
-    ACTION_FAIL = 'PaymentFail'
+    ACTION_SUCCESS = FinalPaymentStateForm.ACTION_CONFIRM
+    ACTION_FAIL = FinalPaymentStateForm.ACTION_FAIL
     VIEW_CLASS = PaymentFinishView
 
     def _get_url(self):
@@ -357,155 +401,71 @@ class PaymentFinishViewTestCase(BaseClientMixin, TestCase):
 
     def _get_initial(self):
         return {
-            'shopId': conf.SHOP_ID, 'orderNumber': self.payment.order_id,
-            'customerNumber': self.payment.customer_id,
-            'paymentType': conf.PAYMENT_TYPE_YANDEX_MONEY,
-            'action': self.ACTION_SUCCESS,
+            'cr_order_number': self.payment.order_id,
+            'cr_action': self.ACTION_SUCCESS,
         }
 
     @override_settings(DEBUG=False)
     def test_get_response(self):
-        response = self._req()
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response['Location'], '/')
-        response = self._req(headers={'HTTP_REFERER': conf.TARGET})
-        self.assertEqual(response.status_code, 200)
+        """GET request with DEBUG=False is allowed only from correct referrer.
+        Otherwise it returns Not Allowed HTTP code
+        """
+        self._req(headers={'HTTP_REFERER': conf.TARGET})
+        self._req(code=405)
 
     @override_settings(DEBUG=True)
     def test_get_response_debug(self):
-        response = self._req()
-        self.assertEqual(response.status_code, 200)
+        """GET request with DEBUG=False is allowed from any referrer"""
+        self._req()
 
     def test_invalid_payment(self):
-        response = self._req(self._get_data(empty_fields=['orderNumber']))
-        self.assertEqual(response.status_code, 302)
+        """GET request with DEBUG=False is allowed from any referrer"""
+        response = self._req(self._get_data(empty_fields=['cr_order_number']),
+                             code=302)
         self.assertEqual(response['Location'], '/')
 
     @mock.patch('yandex_cash_register.views.apps')
-    def test_invalid_with_valid_payment_no_order(self, m_apps):
-        m_model = mock.MagicMock()
-        m_model.get_by_order_id.return_value = None
-        m_apps.get_model.return_value = m_model
-
-        response = self._req(self._get_data(empty_fields=['shopId']))
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response['Location'], '/')
-
-        m_apps.get_model.assert_called_once_with(*conf.MODEL)
-        m_model.get_by_order_id.assert_called_once_with(self.payment.order_id)
-
-        payment = Payment.objects.get(pk=self.payment.id)
-        self.assertEqual(payment.state, payment.STATE_FAIL)
-
-        # Проверяем что отправились правильные сигналы
-        self._check_signals(0, 0, 1)
-
-    @mock.patch('yandex_cash_register.views.apps')
-    def test_invalid_with_valid_payment(self, m_apps):
+    def test_valid_not_started(self, m_apps):
+        """Success request is not valid if payment is not performed.
+        Payment state is not changed
+        """
         m_order = mock.MagicMock()
-        m_order.get_payment_complete_url.return_value = '/order/url/'
+        m_order.get_absolute_url.return_value = '/order/'
         m_model = mock.MagicMock()
         m_model.get_by_order_id.return_value = m_order
         m_apps.get_model.return_value = m_model
 
-        response = self._req(self._get_data(empty_fields=['shopId']))
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response['Location'], '/order/url/')
-
-        m_apps.get_model.assert_called_once_with(*conf.MODEL)
-        m_model.get_by_order_id.assert_called_once_with(self.payment.order_id)
-        m_order.get_payment_complete_url.assert_called_once_with(False)
+        response = self._req(self._get_data(), code=302)
+        self.assertEqual(response['Location'], '/order/')
 
         payment = Payment.objects.get(pk=self.payment.id)
-        self.assertEqual(payment.state, payment.STATE_FAIL)
-
-        # Проверяем что отправились правильные сигналы
-        self._check_signals(0, 0, 1)
-
-    @mock.patch('yandex_cash_register.views.apps')
-    def test_invalid_with_valid_success_payment(self, m_apps):
-        m_order = mock.MagicMock()
-        m_order.get_payment_complete_url.return_value = '/order/url/'
-        m_model = mock.MagicMock()
-        m_model.get_by_order_id.return_value = m_order
-        m_apps.get_model.return_value = m_model
-
-        self.payment.process()
-        self.payment.complete()
-
-        response = self._req(self._get_data(empty_fields=['shopId']))
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response['Location'], '/order/url/')
-
         m_apps.get_model.assert_called_once_with(*conf.MODEL)
         m_model.get_by_order_id.assert_called_once_with(self.payment.order_id)
-        m_order.get_payment_complete_url.assert_called_once_with(False)
+        self.assertEqual(m_order.get_absolute_url.call_count, 1)
 
-        payment = Payment.objects.get(pk=self.payment.id)
-        self.assertEqual(payment.state, payment.STATE_SUCCESS)
-
-        # Проверяем что отправились правильные сигналы
-        self._check_signals(1, 1, 0)
-
-    @mock.patch('yandex_cash_register.views.apps')
-    def test_invalid_with_valid_processed_payment(self, m_apps):
-        m_order = mock.MagicMock()
-        m_order.get_payment_complete_url.return_value = '/order/url/'
-        m_model = mock.MagicMock()
-        m_model.get_by_order_id.return_value = m_order
-        m_apps.get_model.return_value = m_model
-
-        self.payment.process()
-
-        response = self._req(self._get_data(empty_fields=['shopId']))
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response['Location'], '/order/url/')
-
-        m_apps.get_model.assert_called_once_with(*conf.MODEL)
-        m_model.get_by_order_id.assert_called_once_with(self.payment.order_id)
-        m_order.get_payment_complete_url.assert_called_once_with(False)
-
-        payment = Payment.objects.get(pk=self.payment.id)
-        self.assertEqual(payment.state, payment.STATE_FAIL)
+        self.assertEqual(payment.state, self.payment.state)
+        self.assertFalse(payment.is_completed)
+        self.assertFalse(payment.is_payed)
+        self.assertFalse(payment.is_started)
 
         # Проверяем что отправились правильные сигналы
-        self._check_signals(1, 0, 1)
-
-    @mock.patch('yandex_cash_register.views.apps')
-    def test_invalid_with_valid_failed_payment(self, m_apps):
-        m_order = mock.MagicMock()
-        m_order.get_payment_complete_url.return_value = '/order/url/'
-        m_model = mock.MagicMock()
-        m_model.get_by_order_id.return_value = m_order
-        m_apps.get_model.return_value = m_model
-
-        self.payment.process()
-        self.payment.fail()
-
-        response = self._req(self._get_data(empty_fields=['shopId']))
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response['Location'], '/order/url/')
-
-        m_apps.get_model.assert_called_once_with(*conf.MODEL)
-        m_model.get_by_order_id.assert_called_once_with(self.payment.order_id)
-        m_order.get_payment_complete_url.assert_called_once_with(False)
-
-        payment = Payment.objects.get(pk=self.payment.id)
-        self.assertEqual(payment.state, payment.STATE_FAIL)
-
-        # Проверяем что отправились правильные сигналы
-        self._check_signals(1, 0, 1)
+        self._check_signals(0, 0, 0)
 
     @mock.patch('yandex_cash_register.views.apps')
     def test_valid_success(self, m_apps):
+        """Success request is valid even if payment is performed but not
+        completed. Payment state is not changed
+        """
         m_order = mock.MagicMock()
         m_order.get_payment_complete_url.return_value = '/order/url/'
         m_model = mock.MagicMock()
         m_model.get_by_order_id.return_value = m_order
         m_apps.get_model.return_value = m_model
 
-        response = self._req(self._get_data())
-        self.assertEqual(response.status_code, 302)
+        self.payment.process()
+        process_mock.reset_mock()
+
+        response = self._req(self._get_data(), code=302)
         self.assertEqual(response['Location'], '/order/url/')
 
         m_apps.get_model.assert_called_once_with(*conf.MODEL)
@@ -514,78 +474,252 @@ class PaymentFinishViewTestCase(BaseClientMixin, TestCase):
 
         payment = Payment.objects.get(pk=self.payment.id)
         self.assertEqual(payment.state, self.payment.state)
+        self.assertFalse(payment.is_completed)
+        self.assertFalse(payment.is_payed)
+        self.assertTrue(payment.is_started)
 
         # Проверяем что отправились правильные сигналы
         self._check_signals(0, 0, 0)
 
     @mock.patch('yandex_cash_register.views.apps')
-    def test_valid_fail(self, m_apps):
-        m_order = mock.MagicMock()
-        m_order.get_payment_complete_url.return_value = '/order/url/'
-        m_model = mock.MagicMock()
-        m_model.get_by_order_id.return_value = m_order
-        m_apps.get_model.return_value = m_model
-
-        response = self._req(self._get_data(action=self.ACTION_FAIL))
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response['Location'], '/order/url/')
-
-        m_apps.get_model.assert_called_once_with(*conf.MODEL)
-        m_model.get_by_order_id.assert_called_once_with(self.payment.order_id)
-        m_order.get_payment_complete_url.assert_called_once_with(False)
-
-        payment = Payment.objects.get(pk=self.payment.id)
-        self.assertEqual(payment.state, payment.STATE_FAIL)
-
-        # Проверяем что отправились правильные сигналы
-        self._check_signals(0, 0, 1)
-
-    @mock.patch('yandex_cash_register.views.apps')
     def test_valid_already_success(self, m_apps):
+        """Success request is valid if payment is completed. Payment state is
+        not changed
+        """
         m_order = mock.MagicMock()
-        m_order.get_payment_complete_url.return_value = '/order/url/'
+        m_order.get_absolute_url.return_value = '/order/url/'
         m_model = mock.MagicMock()
         m_model.get_by_order_id.return_value = m_order
         m_apps.get_model.return_value = m_model
 
         self.payment.process()
         self.payment.complete()
+        process_mock.reset_mock()
+        success_mock.reset_mock()
 
-        response = self._req(self._get_data())
-        self.assertEqual(response.status_code, 302)
+        response = self._req(self._get_data(), code=302)
         self.assertEqual(response['Location'], '/order/url/')
 
         m_apps.get_model.assert_called_once_with(*conf.MODEL)
         m_model.get_by_order_id.assert_called_once_with(self.payment.order_id)
-        m_order.get_payment_complete_url.assert_called_once_with(True)
+        self.assertEqual(m_order.get_absolute_url.call_count, 1)
 
         payment = Payment.objects.get(pk=self.payment.id)
-        self.assertEqual(payment.state, payment.STATE_SUCCESS)
+        self.assertTrue(payment.is_completed)
+        self.assertTrue(payment.is_payed)
+        self.assertTrue(payment.is_started)
 
         # Проверяем что отправились правильные сигналы
-        self._check_signals(1, 1, 0)
+        self._check_signals(0, 0, 0)
+
+    @mock.patch('yandex_cash_register.views.apps')
+    def test_valid_fail_not_started(self, m_apps):
+        """Fail request is not valid if payment is not performed.
+        Payment state is not changed
+        """
+        m_order = mock.MagicMock()
+        m_order.get_absolute_url.return_value = '/order/'
+        m_model = mock.MagicMock()
+        m_model.get_by_order_id.return_value = m_order
+        m_apps.get_model.return_value = m_model
+
+        response = self._req(self._get_data(cr_action=self.ACTION_FAIL),
+                             code=302)
+        self.assertEqual(response['Location'], '/order/')
+
+        payment = Payment.objects.get(pk=self.payment.id)
+        m_apps.get_model.assert_called_once_with(*conf.MODEL)
+        m_model.get_by_order_id.assert_called_once_with(self.payment.order_id)
+        self.assertEqual(m_order.get_absolute_url.call_count, 1)
+
+        self.assertEqual(payment.state, self.payment.state)
+        self.assertFalse(payment.is_completed)
+        self.assertFalse(payment.is_payed)
+        self.assertFalse(payment.is_started)
+
+        # Проверяем что отправились правильные сигналы
+        self._check_signals(0, 0, 0)
+
+    @mock.patch('yandex_cash_register.views.apps')
+    def test_valid_fail(self, m_apps):
+        """Fail request is valid even if payment is performed but not
+        completed. Payment state is changed to failed
+        """
+        m_order = mock.MagicMock()
+        m_order.get_absolute_url.return_value = '/order/url/'
+        m_model = mock.MagicMock()
+        m_model.get_by_order_id.return_value = m_order
+        m_apps.get_model.return_value = m_model
+
+        self.payment.process()
+        process_mock.reset_mock()
+
+        response = self._req(self._get_data(cr_action=self.ACTION_FAIL),
+                             code=302)
+        self.assertEqual(response['Location'], '/order/url/')
+
+        m_apps.get_model.assert_called_once_with(*conf.MODEL)
+        m_model.get_by_order_id.assert_called_once_with(self.payment.order_id)
+        self.assertEqual(m_order.get_absolute_url.call_count, 1)
+
+        payment = Payment.objects.get(pk=self.payment.id)
+        self.assertTrue(payment.is_completed)
+        self.assertFalse(payment.is_payed)
+        self.assertTrue(payment.is_started)
+
+        # Проверяем что отправились правильные сигналы
+        self._check_signals(0, 0, 1)
 
     @mock.patch('yandex_cash_register.views.apps')
     def test_valid_already_fail(self, m_apps):
+        """Fail request is valid if payment is failed. Payment state is
+        not changed
+        """
         m_order = mock.MagicMock()
-        m_order.get_payment_complete_url.return_value = '/order/url/'
+        m_order.get_absolute_url.return_value = '/order/url/'
         m_model = mock.MagicMock()
         m_model.get_by_order_id.return_value = m_order
         m_apps.get_model.return_value = m_model
 
         self.payment.process()
         self.payment.fail()
+        process_mock.reset_mock()
+        fail_mock.reset_mock()
 
-        response = self._req(self._get_data())
-        self.assertEqual(response.status_code, 302)
+        response = self._req(self._get_data(cr_action=self.ACTION_FAIL),
+                             code=302)
         self.assertEqual(response['Location'], '/order/url/')
 
         m_apps.get_model.assert_called_once_with(*conf.MODEL)
         m_model.get_by_order_id.assert_called_once_with(self.payment.order_id)
-        m_order.get_payment_complete_url.assert_called_once_with(False)
+        self.assertEqual(m_order.get_absolute_url.call_count, 1)
 
         payment = Payment.objects.get(pk=self.payment.id)
-        self.assertEqual(payment.state, payment.STATE_FAIL)
+        self.assertTrue(payment.is_completed)
+        self.assertFalse(payment.is_payed)
+        self.assertTrue(payment.is_started)
 
         # Проверяем что отправились правильные сигналы
-        self._check_signals(1, 0, 1)
+        self._check_signals(0, 0, 0)
+
+    @mock.patch('yandex_cash_register.views.apps')
+    def test_success_with_no_order(self, m_apps):
+        """Success request with no order fails a payment"""
+        m_model = mock.MagicMock()
+        m_model.get_by_order_id.return_value = None
+        m_apps.get_model.return_value = m_model
+
+        response = self._req(self._get_data(), code=302)
+        self.assertEqual(response['Location'], '/')
+
+        m_apps.get_model.assert_called_once_with(*conf.MODEL)
+        m_model.get_by_order_id.assert_called_once_with(self.payment.order_id)
+
+        payment = Payment.objects.get(pk=self.payment.id)
+        self.assertEqual(payment.state, self.payment.state)
+
+        # Проверяем что отправились правильные сигналы
+        self._check_signals(0, 0, 0)
+
+    @mock.patch('yandex_cash_register.views.apps')
+    def test_failreq_already_success(self, m_apps):
+        """Fail request is valid if payment is completed. Payment state
+        is not changed
+        """
+        m_order = mock.MagicMock()
+        m_order.get_absolute_url.return_value = '/order/'
+        m_model = mock.MagicMock()
+        m_model.get_by_order_id.return_value = m_order
+        m_apps.get_model.return_value = m_model
+
+        self.payment.process()
+        self.payment.complete()
+        process_mock.reset_mock()
+        success_mock.reset_mock()
+
+        response = self._req(self._get_data(cr_action=self.ACTION_FAIL),
+                             code=302)
+        self.assertEqual(response['Location'], '/order/')
+
+        m_apps.get_model.assert_called_once_with(*conf.MODEL)
+        m_model.get_by_order_id.assert_called_once_with(self.payment.order_id)
+        self.assertEqual(m_order.get_absolute_url.call_count, 1)
+
+        payment = Payment.objects.get(pk=self.payment.id)
+        self.assertTrue(payment.is_completed)
+        self.assertTrue(payment.is_payed)
+        self.assertTrue(payment.is_started)
+
+        # Проверяем что отправились правильные сигналы
+        self._check_signals(0, 0, 0)
+
+    @mock.patch('yandex_cash_register.views.apps')
+    def test_successrec_already_fail(self, m_apps):
+        """Success request is valid if payment is failed. Payment state
+        is not changed
+        """
+        m_order = mock.MagicMock()
+        m_order.get_absolute_url.return_value = '/order/'
+        m_model = mock.MagicMock()
+        m_model.get_by_order_id.return_value = m_order
+        m_apps.get_model.return_value = m_model
+
+        self.payment.process()
+        self.payment.fail()
+        process_mock.reset_mock()
+        fail_mock.reset_mock()
+
+        response = self._req(self._get_data(cr_action=self.ACTION_FAIL),
+                             code=302)
+        self.assertEqual(response['Location'], '/order/')
+
+        m_apps.get_model.assert_called_once_with(*conf.MODEL)
+        m_model.get_by_order_id.assert_called_once_with(self.payment.order_id)
+        self.assertEqual(m_order.get_absolute_url.call_count, 1)
+
+        payment = Payment.objects.get(pk=self.payment.id)
+        self.assertTrue(payment.is_completed)
+        self.assertFalse(payment.is_payed)
+        self.assertTrue(payment.is_started)
+
+        # Проверяем что отправились правильные сигналы
+        self._check_signals(0, 0, 0)
+
+    @mock.patch('yandex_cash_register.views.apps')
+    def test_invalid_form_redirects_to_model(self, m_apps):
+        """Invalid form redirects to model if it can. Payment is not changed"""
+        m_order = mock.MagicMock()
+        m_order.get_absolute_url.return_value = '/order/'
+        m_model = mock.MagicMock()
+        m_model.get_by_order_id.return_value = m_order
+        m_apps.get_model.return_value = m_model
+
+        response = self._req(self._get_data(empty_fields=['cr_action']),
+                             code=302)
+        self.assertEqual(response['Location'], '/order/')
+
+        m_apps.get_model.assert_called_once_with(*conf.MODEL)
+        m_model.get_by_order_id.assert_called_once_with(self.payment.order_id)
+        self.assertEqual(m_order.get_absolute_url.call_count, 1)
+
+        payment = Payment.objects.get(pk=self.payment.id)
+        for f in payment._meta.fields:
+            self.assertEqual(getattr(payment, f.name),
+                             getattr(self.payment, f.name))
+
+        # Проверяем что отправились правильные сигналы
+        self._check_signals(0, 0, 0)
+
+    def test_invalid_form_redirects_to_root(self):
+        """Invalid form redirects to / if it cannot find payment."""
+        response = self._req(self._get_data(empty_fields=['cr_order_number']),
+                             code=302)
+        self.assertEqual(response['Location'], '/')
+
+        payment = Payment.objects.get(pk=self.payment.id)
+        for f in payment._meta.fields:
+            self.assertEqual(getattr(payment, f.name),
+                             getattr(self.payment, f.name))
+
+        # Проверяем что отправились правильные сигналы
+        self._check_signals(0, 0, 0)

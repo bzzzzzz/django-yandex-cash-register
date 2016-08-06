@@ -5,6 +5,7 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.utils.encoding import python_2_unicode_compatible
 from django.utils.timezone import now
 
 from . import conf
@@ -12,6 +13,7 @@ from .forms import PaymentForm
 from .signals import payment_process, payment_success, payment_fail
 
 
+@python_2_unicode_compatible
 class Payment(models.Model):
     STATE_CREATED = 'created'
     STATE_PROCESSED = 'processed'

@@ -29,7 +29,7 @@ class ShopIdForm(forms.Form):
     @cached_property
     def payment_obj(self):
         """
-        :rtype: yandex_money.models.Payment
+        :rtype: yandex_cash_register.models.Payment
         """
         payment_model = apps.get_model(YandexMoneyConfig.name, 'Payment')
         order_number = self.cleaned_data.get('orderNumber')
@@ -115,22 +115,14 @@ class PaymentForm(ShopIdForm):
         return conf.TARGET
 
 
-class WeakOrderStateForm(ShopIdForm):
+class PaymentProcessingForm(ShopIdForm):
     ACTION_CHECK = 'checkOrder'
     ACTION_CPAYMENT = 'paymentAviso'
-    ACTION_WEAK_FAIL = 'PaymentFail'
-    ACTION_WEAK_CONFIRM = 'PaymentSuccess'
 
     ACTION_CHOICES = (
         (ACTION_CHECK, 'Проверка заказа'),
         (ACTION_CPAYMENT, 'Уведомления о переводе'),
-        (ACTION_WEAK_FAIL, 'Ошибка платежа'),
-        (ACTION_WEAK_CONFIRM, 'Успех платежа'),
     )
-    action = forms.ChoiceField(choices=ACTION_CHOICES)
-
-
-class OrderProcessingForm(WeakOrderStateForm):
     MD5_KEY_ORDER = ['action', 'orderSumAmount', 'orderSumCurrencyPaycash',
                      'orderSumBankPaycash', 'shopId', 'invoiceId',
                      'customerNumber']
@@ -148,9 +140,10 @@ class OrderProcessingForm(WeakOrderStateForm):
     shopSumCurrencyPaycash = forms.IntegerField()
     shopArticleId = forms.IntegerField(required=False)
     paymentPayerCode = forms.CharField(max_length=33, required=False)
+    action = forms.ChoiceField(choices=ACTION_CHOICES)
 
     def __init__(self, *args, **kwargs):
-        super(OrderProcessingForm, self).__init__(*args, **kwargs)
+        super(PaymentProcessingForm, self).__init__(*args, **kwargs)
 
         self._error_code = None
         self._error_message = None
@@ -176,7 +169,7 @@ class OrderProcessingForm(WeakOrderStateForm):
         return int(round(paysum / 10, 0)) * 10
 
     def clean(self):
-        data = super(OrderProcessingForm, self).clean()
+        data = super(PaymentProcessingForm, self).clean()
         if self.errors:
             if 'md5' in self.errors:
                 self.set_error(self.ERROR_CODE_MD5,
@@ -208,3 +201,28 @@ class OrderProcessingForm(WeakOrderStateForm):
     @property
     def error_message(self):
         return self._error_message
+
+
+class FinalPaymentStateForm(forms.Form):
+    ACTION_FAIL = 'payment_fail'
+    ACTION_CONFIRM = 'payment_confirm'
+
+    ACTION_CHOICES = (
+        (ACTION_FAIL, 'Ошибка платежа'),
+        (ACTION_CONFIRM, 'Успех платежа'),
+    )
+    cr_action = forms.ChoiceField(choices=ACTION_CHOICES)
+    cr_order_number = forms.CharField(min_length=1, max_length=64)
+
+    @cached_property
+    def payment_obj(self):
+        """
+        :rtype: yandex_cash_register.models.Payment
+        """
+        payment_model = apps.get_model(YandexMoneyConfig.name, 'Payment')
+        order_number = self.cleaned_data.get('cr_order_number')
+        try:
+            return payment_model.objects.select_for_update().get(
+                order_id=order_number)
+        except payment_model.DoesNotExist:
+            return None
