@@ -2,6 +2,7 @@
 from __future__ import absolute_import, unicode_literals
 
 from django.conf import settings
+from django.utils.translation import ugettext_lazy as _
 
 
 DEBUG = getattr(settings, 'YANDEX_CR_DEBUG', False)
@@ -40,16 +41,16 @@ PAYMENT_TYPE_WEBMONEY = 'WM'
 PAYMENT_TYPE_QIWI_WALLET = 'QS'
 
 BASE_PAYMENT_TYPE_CHOICES = (
-    (PAYMENT_TYPE_ALFA_CLICK, 'Альфа-Клик'),
-    (PAYMENT_TYPE_CARD, 'Банковская карта'),
-    (PAYMENT_TYPE_TERMINAL_CACHE, 'Наличные через терминал'),
-    (PAYMENT_TYPE_MASTER_PASS, 'MasterPass'),
-    (PAYMENT_TYPE_MOBILE_ACCOUNT, 'Счет мобильного телефона'),
-    (PAYMENT_TYPE_PROMSVYASBANK, 'Интернет-банк Промсвязьбанка'),
-    (PAYMENT_TYPE_YANDEX_MONEY, 'Кошелек Яндекс.Денег'),
-    (PAYMENT_TYPE_SBERBANK, 'Сбербанк Онлайн'),
-    (PAYMENT_TYPE_WEBMONEY, 'Кошелек WebMoney'),
-    (PAYMENT_TYPE_QIWI_WALLET, 'QiWi кошелёк'),
+    (PAYMENT_TYPE_ALFA_CLICK, _('Alfa Click')),
+    (PAYMENT_TYPE_CARD, _('Credit/Debit card')),
+    (PAYMENT_TYPE_TERMINAL_CACHE, _('Cash via terminal')),
+    (PAYMENT_TYPE_MASTER_PASS, _('MasterPass')),
+    (PAYMENT_TYPE_MOBILE_ACCOUNT, _('Mobile phone account')),
+    (PAYMENT_TYPE_PROMSVYASBANK, _('Promsvyazbank online-bank')),
+    (PAYMENT_TYPE_YANDEX_MONEY, _('Yandex.Money wallet')),
+    (PAYMENT_TYPE_SBERBANK, _('Sberbank Online')),
+    (PAYMENT_TYPE_WEBMONEY, _('WebMoney wallet')),
+    (PAYMENT_TYPE_QIWI_WALLET, _('QiWi wallet')),
 )
 
 PAYMENT_TYPES = getattr(settings, 'YANDEX_CR_PAYMENT_TYPE',

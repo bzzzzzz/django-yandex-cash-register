@@ -1,0 +1,207 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2016, Evgeny Barbashov
+# This file is distributed under the same license as the django-yandex-cash-register package.
+# Evgeny Barbashov <evgenybarbashov@yandex.ru>, 2016.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: 0.1.3\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2016-08-10 18:28+0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: Evgeny Barbashov <evgenybarbashov@yandex.ru>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=4; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
+"%10<=4 && (n%100<12 || n%100>14) ? 1 : n%10==0 || (n%10>=5 && n%10<=9) || (n"
+"%100>=11 && n%100<=14)? 2 : 3);\n"
+
+#: apps.py:10
+msgid "Yandex.Kassa payments"
+msgstr "Платежи Яндекс.Кассы"
+
+#: conf.py:44
+msgid "Alfa Click"
+msgstr "Альфа Клик"
+
+#: conf.py:45
+msgid "Credit/Debit card"
+msgstr "Банковская карта"
+
+#: conf.py:46
+msgid "Cash via terminal"
+msgstr "Наличными через терминал"
+
+#: conf.py:47
+msgid "MasterPass"
+msgstr "MasterPass"
+
+#: conf.py:48
+msgid "Mobile phone account"
+msgstr "Счет мобильного телефона"
+
+#: conf.py:49
+msgid "Promsvyazbank online-bank"
+msgstr "Интернет-банк ПромСвязьБанка"
+
+#: conf.py:50
+msgid "Yandex.Money wallet"
+msgstr "Кошелек Яндекс.Денег"
+
+#: conf.py:51
+msgid "Sberbank Online"
+msgstr "Сбербанк Онлайн"
+
+#: conf.py:52
+msgid "WebMoney wallet"
+msgstr "Кошелек WebMoney"
+
+#: conf.py:53
+msgid "QiWi wallet"
+msgstr "Кошелек QiWi"
+
+#: forms.py:48
+#, python-format
+msgid "Cannot find payment with order ID %(order_number)s"
+msgstr "Невозможно найти платеж к заказу %(order_number)s"
+
+#: forms.py:57
+msgid "Unknown shop ID"
+msgstr "Неверный идентификатор магазина"
+
+#: forms.py:63
+msgid "Unknown customer ID"
+msgstr "Неверный идентификатор клиента"
+
+#: forms.py:70
+msgid "Unknown or unsupported payment method"
+msgstr "Неверный или неподдерживаемый метод оплаты"
+
+#: forms.py:111
+msgid "This form cannot be validated"
+msgstr "Невозможно валидировать форму"
+
+#: forms.py:175 forms.py:187
+msgid "MD5 is incorrect"
+msgstr "Неверная MD5 сумма"
+
+#: forms.py:179
+msgid "No such order"
+msgstr "Нет такого заказа"
+
+#: forms.py:182
+msgid "Cannot process payment"
+msgstr "Невозможно обработать платеж"
+
+#: forms.py:193
+msgid "Sum doesn't match"
+msgstr "Сумма оплаты не совпадает"
+
+#: models.py:25
+msgid "Created"
+msgstr "Создан"
+
+#: models.py:26
+msgid "Processed"
+msgstr "Обработан"
+
+#: models.py:27
+msgid "Succeed"
+msgstr "Успешно завершен"
+
+#: models.py:28
+msgid "Failed"
+msgstr "Завершен с ошибкой"
+
+#: models.py:35
+msgid "Rouble"
+msgstr "Рубль"
+
+#: models.py:36
+msgid "Test currency"
+msgstr "Тестовая валюта"
+
+#: models.py:40
+msgid "User"
+msgstr "Пользователь"
+
+#: models.py:41
+msgid "Order ID"
+msgstr "Идентификатор заказа"
+
+#: models.py:43
+msgid "Customer ID"
+msgstr "Идентификатор клиента"
+
+#: models.py:45
+msgid "State"
+msgstr "Состояние"
+
+#: models.py:48
+msgid "Payment method"
+msgstr "Способ оплаты"
+
+#: models.py:52
+msgid "Invoice ID"
+msgstr "Идентификатор платежа"
+
+#: models.py:54
+msgid "Order sum"
+msgstr "Сумма к оплате"
+
+#: models.py:56
+msgid "Received sum"
+msgstr "Полученная сумма"
+
+#: models.py:58
+msgid "Order sum - Yandex.Kassa fee"
+msgstr "Сумма к оплате минус комиссия Яндекс.Кассы"
+
+#: models.py:62
+msgid "Order currency"
+msgstr "Валюта заказа"
+
+#: models.py:65
+msgid "Payment currency"
+msgstr "Валюта платежа"
+
+#: models.py:67
+msgid "Payer code"
+msgstr "Код плательщика"
+
+#: models.py:70
+msgid "Payer e-mail"
+msgstr "Почта плательщика"
+
+#: models.py:72
+msgid "Payer phone"
+msgstr "Телефон плательщика"
+
+#: models.py:75
+msgid "Created at"
+msgstr "Дата создания"
+
+#: models.py:76
+msgid "Started at"
+msgstr "Дата начала обработки"
+
+#: models.py:77
+msgid "Completed at"
+msgstr "Дата завершения обработки"
+
+#: models.py:80
+#, python-format
+msgid "Payment #%(payment)s"
+msgstr "Платеж #%(payment)s"
+
+#: models.py:84
+msgid "payment"
+msgstr "платеж"
+
+#: models.py:85
+msgid "payments"
+msgstr "платежи"

@@ -171,7 +171,7 @@ class CheckOrderViewTestCase(BaseViewTestCase, TestCase):
 
         expected_content = '<?xml version=\'1.0\' encoding=\'UTF-8\'?>\n' \
                            '<checkOrderResponse code="1" ' \
-                           'message="Неверный MD5 код в запросе"/>'
+                           'message="MD5 is incorrect"/>'
         self.assertEqual(response.content, expected_content.encode('utf-8'))
 
         # Проверяем что отправились правильные сигналы
@@ -353,7 +353,7 @@ class PaymentAvisoViewTestCase(BaseViewTestCase, TestCase):
 
         expected_content = '<?xml version=\'1.0\' encoding=\'UTF-8\'?>\n' \
                            '<paymentAvisoResponse code="1" ' \
-                           'message="Неверный MD5 код в запросе"/>'
+                           'message="MD5 is incorrect"/>'
         self.assertEqual(response.content, expected_content.encode('utf-8'))
 
         # Проверяем что отправились правильные сигналы

@@ -5,7 +5,7 @@ from setuptools import setup
 
 setup(
     name='django-yandex-cash-register',
-    version='0.1.2',
+    version='0.1.3',
     zip_safe=False,
     description='Generic Yandex.Kassa application for Django',
     long_description=open(os.path.join(os.path.dirname(__file__),
@@ -21,6 +21,7 @@ setup(
     package_data={
         'yandex_cash_register': [
             'templates/*/*.*',
+            'locale/*/LC_MESSAGES/*.po',
         ]
     },
     classifiers=[

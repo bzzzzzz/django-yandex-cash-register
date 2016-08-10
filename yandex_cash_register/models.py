@@ -8,6 +8,7 @@ from django.core.urlresolvers import reverse
 from django.db import models
 from django.utils.encoding import python_2_unicode_compatible
 from django.utils.timezone import now
+from django.utils.translation import ugettext_lazy as _
 
 from . import conf
 from .forms import PaymentForm, FinalPaymentStateForm
@@ -21,67 +22,67 @@ class Payment(models.Model):
     STATE_SUCCESS = 'success'
     STATE_FAIL = 'fail'
     STATE_CHOICES = (
-        (STATE_CREATED, 'Created'),
-        (STATE_PROCESSED, 'Processed'),
-        (STATE_SUCCESS, 'Success'),
-        (STATE_FAIL, 'Fail'),
+        (STATE_CREATED, _('Created')),
+        (STATE_PROCESSED, _('Processed')),
+        (STATE_SUCCESS, _('Succeed')),
+        (STATE_FAIL, _('Failed')),
     )
 
     CURRENCY_RUB = 643
     CURRENCY_TEST = 10643
 
     CURRENCY_CHOICES = (
-        (CURRENCY_RUB, 'Рубли'),
-        (CURRENCY_TEST, 'Тестовая валюта'),
+        (CURRENCY_RUB, _('Rouble')),
+        (CURRENCY_TEST, _('Test currency')),
     )
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True,
-                             verbose_name='Пользователь')
-    order_id = models.CharField('Номер заказа', max_length=50, unique=True,
+                             verbose_name=_('User'))
+    order_id = models.CharField(_('Order ID'), max_length=50, unique=True,
                                 editable=False, db_index=True)
-    customer_id = models.UUIDField('Номер плательщика', unique=True,
+    customer_id = models.UUIDField(_('Customer ID'), unique=True,
                                    default=uuid.uuid4, editable=False)
-    state = models.CharField('Статус', max_length=16, choices=STATE_CHOICES,
+    state = models.CharField(_('State'), max_length=16, choices=STATE_CHOICES,
                              default=STATE_CREATED, editable=False)
 
-    payment_type = models.CharField('Способ платежа', max_length=2,
+    payment_type = models.CharField(_('Payment method'), max_length=2,
                                     default=conf.PAYMENT_TYPE_YANDEX_MONEY,
                                     choices=conf.BASE_PAYMENT_TYPE_CHOICES,
                                     editable=False)
-    invoice_id = models.CharField('Номер транзакции оператора', max_length=64,
+    invoice_id = models.CharField(_('Invoice ID'), max_length=64,
                                   blank=True, editable=False)
-    order_sum = models.DecimalField('Сумма заказа', max_digits=15,
+    order_sum = models.DecimalField(_('Order sum'), max_digits=15,
                                     decimal_places=2, editable=False)
-    shop_sum = models.DecimalField('Сумма полученная на р/с', max_digits=15,
+    shop_sum = models.DecimalField(_('Received sum'), max_digits=15,
                                    decimal_places=2, null=True,
-                                   help_text='За вычетом коммиссии',
+                                   help_text=_('Order sum - Yandex.Kassa fee'),
                                    editable=False)
 
     order_currency = models.PositiveIntegerField(
-        'Валюта платежа', default=CURRENCY_RUB, choices=CURRENCY_CHOICES,
+        _('Order currency'), default=CURRENCY_RUB, choices=CURRENCY_CHOICES,
         editable=False)
     shop_currency = models.PositiveIntegerField(
-        'Валюта полученная на р/с', null=True, default=CURRENCY_RUB,
+        _('Payment currency'), null=True, default=CURRENCY_RUB,
         choices=CURRENCY_CHOICES)
-    payer_code = models.CharField('Номер виртуального счета', max_length=33,
+    payer_code = models.CharField(_('Payer code'), max_length=33,
                                   blank=True, editable=False)
 
-    cps_email = models.EmailField('Почта плательщика', blank=True,
+    cps_email = models.EmailField(_('Payer e-mail'), blank=True,
                                   editable=False)
-    cps_phone = models.CharField('Телефон плательщика', max_length=15,
+    cps_phone = models.CharField(_('Payer phone'), max_length=15,
                                  blank=True, editable=False)
 
-    created = models.DateTimeField('Создан', auto_now_add=True)
-    performed = models.DateTimeField('Обработан', null=True)
-    completed = models.DateTimeField('Завершен', null=True)
+    created = models.DateTimeField(_('Created at'), auto_now_add=True)
+    performed = models.DateTimeField(_('Started at'), null=True)
+    completed = models.DateTimeField(_('Completed at'), null=True)
 
     def __str__(self):
-        return 'Платеж #{}'.format(self.order_id)
+        return _('Payment #%(payment)s') % {'payment': self.order_id}
 
     class Meta:
         ordering = ('-created',)
-        verbose_name = 'платеж'
-        verbose_name_plural = 'Платежи'
+        verbose_name = _('payment')
+        verbose_name_plural = _('payments')
 
     @property
     def is_payed(self):
@@ -145,12 +146,14 @@ class Payment(models.Model):
         }
         if conf.SUCCESS_URL is None:
             url = reverse('yandex_cash_register:money_payment_finish')
-            initial['shopSuccessURL'] = '{}{}?cr_action={}&cr_order_number={}'.format(
-                conf.SHOP_DOMAIN, url, FinalPaymentStateForm.ACTION_CONFIRM,
-                self.order_id
-            )
-            initial['shopFailURL'] = '{}{}?cr_action={}&cr_order_number={}'.format(
-                conf.SHOP_DOMAIN, url, FinalPaymentStateForm.ACTION_FAIL,
-                self.order_id
-            )
+            initial['shopSuccessURL'] = \
+                '{}{}?cr_action={}&cr_order_number={}'.format(
+                    conf.SHOP_DOMAIN, url,
+                    FinalPaymentStateForm.ACTION_CONFIRM, self.order_id
+                )
+            initial['shopFailURL'] = \
+                '{}{}?cr_action={}&cr_order_number={}'.format(
+                    conf.SHOP_DOMAIN, url, FinalPaymentStateForm.ACTION_FAIL,
+                    self.order_id
+                )
         return PaymentForm(initial=initial)

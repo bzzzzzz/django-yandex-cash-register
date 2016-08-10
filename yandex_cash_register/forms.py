@@ -3,9 +3,10 @@ from __future__ import absolute_import, unicode_literals
 
 from hashlib import md5
 
+from django import forms
 from django.apps import apps
 from django.utils.functional import cached_property
-from django import forms
+from django.utils.translation import ugettext as _
 
 from .apps import YandexMoneyConfig
 from . import conf
@@ -16,15 +17,15 @@ readonly_widget = forms.TextInput(attrs={'readonly': 'readonly'})
 
 class ShopIdForm(forms.Form):
     shopId = forms.IntegerField(initial=conf.SHOP_ID, widget=readonly_widget)
-    orderNumber = forms.CharField(label='Номер заказа', min_length=1,
-                                  max_length=64, widget=readonly_widget)
-    customerNumber = forms.CharField(label='ID пользователя', min_length=1,
-                                     max_length=64, widget=readonly_widget)
-    paymentType = forms.CharField(label='Способ оплаты',
-                                  widget=forms.Select(
-                                      choices=conf.PAYMENT_TYPE_CHOICES),
-                                  min_length=2, max_length=2,
-                                  initial=conf.PAYMENT_TYPE_YANDEX_MONEY)
+    orderNumber = forms.CharField(min_length=1, max_length=64,
+                                  widget=readonly_widget)
+    customerNumber = forms.CharField(min_length=1, max_length=64,
+                                     widget=readonly_widget)
+    paymentType = forms.CharField(
+        widget=forms.Select(choices=conf.PAYMENT_TYPE_CHOICES),
+        min_length=2, max_length=2,
+        initial=conf.PAYMENT_TYPE_YANDEX_MONEY
+    )
 
     @cached_property
     def payment_obj(self):
@@ -44,28 +45,29 @@ class ShopIdForm(forms.Form):
         payment = self.payment_obj
         if payment is None:
             raise forms.ValidationError(
-                u'Заказ с номером %s не найден' % str(order_number)
+                _('Cannot find payment with order ID %(order_number)s'),
+                code='invalid',
+                params={'order_number': order_number},
             )
         return order_number
 
     def clean_shopId(self):
         shop_id = self.cleaned_data['shopId']
         if int(shop_id) != int(conf.SHOP_ID):
-            raise forms.ValidationError(
-                u'shopId не совпадает с YANDEX_KASSA_SHOPID'
-            )
+            raise forms.ValidationError(_('Unknown shop ID'))
         return shop_id
 
     def _clean_customerNumber(self):
         customer_id = self.cleaned_data['customerNumber']
         if customer_id != str(self.payment_obj.customer_id):
-            raise forms.ValidationError('Неверный клиент')
+            raise forms.ValidationError(_('Unknown customer ID'))
         return customer_id
 
     def _clean_paymentType(self):
         payment_type = self.cleaned_data['paymentType']
         if payment_type != str(self.payment_obj.payment_type):
-            raise forms.ValidationError('Неверный тип платежа')
+            raise forms.ValidationError(
+                _('Unknown or unsupported payment method'))
         return payment_type
 
     def clean(self):
@@ -87,13 +89,11 @@ class ShopIdForm(forms.Form):
 class PaymentForm(ShopIdForm):
     scid = forms.IntegerField(initial=conf.SCID, widget=readonly_widget)
 
-    sum = forms.DecimalField(label=u'Сумма заказа', min_value=0,
-                             widget=readonly_widget)
+    sum = forms.DecimalField(min_value=0, widget=readonly_widget)
 
-    cps_email = forms.EmailField(label=u'Почта', required=False,
-                                 widget=readonly_widget)
-    cps_phone = forms.CharField(label=u'Телефон', max_length=15,
-                                required=False, widget=readonly_widget)
+    cps_email = forms.EmailField(required=False, widget=readonly_widget)
+    cps_phone = forms.CharField(max_length=15, required=False,
+                                widget=readonly_widget)
 
     shopFailURL = forms.URLField(initial=conf.FAIL_URL, widget=readonly_widget)
     shopSuccessURL = forms.URLField(initial=conf.SUCCESS_URL,
@@ -108,7 +108,7 @@ class PaymentForm(ShopIdForm):
                     self.fields[name].widget = forms.HiddenInput()
 
     def clean(self):
-        raise forms.ValidationError('Эта форма не может быть валидирована')
+        raise forms.ValidationError(_('This form cannot be validated'))
 
     @property
     def target(self):
@@ -120,8 +120,8 @@ class PaymentProcessingForm(ShopIdForm):
     ACTION_CPAYMENT = 'paymentAviso'
 
     ACTION_CHOICES = (
-        (ACTION_CHECK, 'Проверка заказа'),
-        (ACTION_CPAYMENT, 'Уведомления о переводе'),
+        (ACTION_CHECK, ACTION_CHECK),
+        (ACTION_CPAYMENT, ACTION_CPAYMENT),
     )
     MD5_KEY_ORDER = ['action', 'orderSumAmount', 'orderSumCurrencyPaycash',
                      'orderSumBankPaycash', 'shopId', 'invoiceId',
@@ -172,25 +172,25 @@ class PaymentProcessingForm(ShopIdForm):
         data = super(PaymentProcessingForm, self).clean()
         if self.errors:
             if 'md5' in self.errors:
-                self.set_error(self.ERROR_CODE_MD5,
-                               'Неверный MD5 код в запросе')
+                self.set_error(self.ERROR_CODE_MD5, _('MD5 is incorrect'))
             elif 'customerNumber' in self.errors or \
                     'orderNumber' in self.errors:
                 self.set_error(self.ERROR_CODE_UNKNOWN_ORDER,
-                               'Нет такого заказа')
+                               _('No such order'))
             else:
                 self.set_error(self.ERROR_CODE_INTERNAL,
-                               'Невозможно обработать платеж')
+                               _('Cannot process payment'))
 
             return data
 
         if self._make_md5() != data['md5']:
-            self.set_error(self.ERROR_CODE_MD5, 'Неверный MD5 код в запросе',
+            self.set_error(self.ERROR_CODE_MD5, _('MD5 is incorrect'),
                            raise_error=True)
 
-        if self._round(self.payment_obj.order_sum) != self._round(data['orderSumAmount']):
-            self.set_error(self.ERROR_CODE_UNKNOWN_ORDER, 'Неверная сумма',
-                           raise_error=True)
+        if self._round(self.payment_obj.order_sum) != self._round(
+                data['orderSumAmount']):
+            self.set_error(self.ERROR_CODE_UNKNOWN_ORDER,
+                           _("Sum doesn't match"), raise_error=True)
 
         return data
 
@@ -208,8 +208,8 @@ class FinalPaymentStateForm(forms.Form):
     ACTION_CONFIRM = 'payment_confirm'
 
     ACTION_CHOICES = (
-        (ACTION_FAIL, 'Ошибка платежа'),
-        (ACTION_CONFIRM, 'Успех платежа'),
+        (ACTION_FAIL, ACTION_FAIL),
+        (ACTION_CONFIRM, ACTION_CONFIRM),
     )
     cr_action = forms.ChoiceField(choices=ACTION_CHOICES)
     cr_order_number = forms.CharField(min_length=1, max_length=64)
