@@ -39,6 +39,15 @@ SETTINGS_DICT = {
     'TEMPLATE_DIRS': (
         os.path.join(APP_DIR, 'yandex_cash_register', 'templates'),
     ),
+    'TEMPLATES': [
+        {
+            'BACKEND': 'django.template.backends.django.DjangoTemplates',
+            'APP_DIRS': True,
+            'DIRS': [
+                os.path.join(APP_DIR, 'yandex_cash_register', 'templates'),
+            ],
+        },
+    ],
     'SITE_ID': 1,
     'DEFAULT_FROM_EMAIL': 'contact@example.com',
     'MANAGERS': [('Manager', 'noreply@example.com')],

@@ -1,7 +1,10 @@
 # coding=utf-8
 from __future__ import absolute_import, unicode_literals
 
-from unittest import mock
+try:
+    from unittest import mock
+except ImportError:
+    import mock
 
 from decimal import Decimal
 from uuid import UUID
