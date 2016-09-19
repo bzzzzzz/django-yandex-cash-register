@@ -42,7 +42,10 @@ class BaseFormView(FormView):
             params['code'] = 0
 
         for key in params:
-            params[key] = str(params[key])
+            try:
+                params[key] = str(params[key])
+            except UnicodeEncodeError:
+                pass
 
         content = getattr(E, '{}Response'.format(self.accepted_action))()
         for key, value in params.items():

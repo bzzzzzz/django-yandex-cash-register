@@ -426,6 +426,8 @@ class PaymentFinishViewTestCase(BaseClientMixin, TestCase):
         """GET request with DEBUG=False is allowed from any referrer"""
         response = self._req(self._get_data(empty_fields=['cr_order_number']),
                              code=302)
+        if response['Location'].startswith('http://testserver'):
+            response['Location'] = response['Location'][17:]
         self.assertEqual(response['Location'], '/')
 
     @mock.patch('yandex_cash_register.views.apps')
@@ -440,6 +442,8 @@ class PaymentFinishViewTestCase(BaseClientMixin, TestCase):
         m_apps.get_model.return_value = m_model
 
         response = self._req(self._get_data(), code=302)
+        if response['Location'].startswith('http://testserver'):
+            response['Location'] = response['Location'][17:]
         self.assertEqual(response['Location'], '/order/')
 
         payment = Payment.objects.get(pk=self.payment.id)
@@ -470,6 +474,8 @@ class PaymentFinishViewTestCase(BaseClientMixin, TestCase):
         process_mock.reset_mock()
 
         response = self._req(self._get_data(), code=302)
+        if response['Location'].startswith('http://testserver'):
+            response['Location'] = response['Location'][17:]
         self.assertEqual(response['Location'], '/order/url/')
 
         m_apps.get_model.assert_called_once_with(*conf.MODEL)
@@ -502,6 +508,8 @@ class PaymentFinishViewTestCase(BaseClientMixin, TestCase):
         success_mock.reset_mock()
 
         response = self._req(self._get_data(), code=302)
+        if response['Location'].startswith('http://testserver'):
+            response['Location'] = response['Location'][17:]
         self.assertEqual(response['Location'], '/order/url/')
 
         m_apps.get_model.assert_called_once_with(*conf.MODEL)
@@ -529,6 +537,8 @@ class PaymentFinishViewTestCase(BaseClientMixin, TestCase):
 
         response = self._req(self._get_data(cr_action=self.ACTION_FAIL),
                              code=302)
+        if response['Location'].startswith('http://testserver'):
+            response['Location'] = response['Location'][17:]
         self.assertEqual(response['Location'], '/order/')
 
         payment = Payment.objects.get(pk=self.payment.id)
@@ -560,6 +570,8 @@ class PaymentFinishViewTestCase(BaseClientMixin, TestCase):
 
         response = self._req(self._get_data(cr_action=self.ACTION_FAIL),
                              code=302)
+        if response['Location'].startswith('http://testserver'):
+            response['Location'] = response['Location'][17:]
         self.assertEqual(response['Location'], '/order/url/')
 
         m_apps.get_model.assert_called_once_with(*conf.MODEL)
@@ -592,6 +604,8 @@ class PaymentFinishViewTestCase(BaseClientMixin, TestCase):
 
         response = self._req(self._get_data(cr_action=self.ACTION_FAIL),
                              code=302)
+        if response['Location'].startswith('http://testserver'):
+            response['Location'] = response['Location'][17:]
         self.assertEqual(response['Location'], '/order/url/')
 
         m_apps.get_model.assert_called_once_with(*conf.MODEL)
@@ -614,6 +628,8 @@ class PaymentFinishViewTestCase(BaseClientMixin, TestCase):
         m_apps.get_model.return_value = m_model
 
         response = self._req(self._get_data(), code=302)
+        if response['Location'].startswith('http://testserver'):
+            response['Location'] = response['Location'][17:]
         self.assertEqual(response['Location'], '/')
 
         m_apps.get_model.assert_called_once_with(*conf.MODEL)
@@ -643,6 +659,8 @@ class PaymentFinishViewTestCase(BaseClientMixin, TestCase):
 
         response = self._req(self._get_data(cr_action=self.ACTION_FAIL),
                              code=302)
+        if response['Location'].startswith('http://testserver'):
+            response['Location'] = response['Location'][17:]
         self.assertEqual(response['Location'], '/order/')
 
         m_apps.get_model.assert_called_once_with(*conf.MODEL)
@@ -675,6 +693,8 @@ class PaymentFinishViewTestCase(BaseClientMixin, TestCase):
 
         response = self._req(self._get_data(cr_action=self.ACTION_FAIL),
                              code=302)
+        if response['Location'].startswith('http://testserver'):
+            response['Location'] = response['Location'][17:]
         self.assertEqual(response['Location'], '/order/')
 
         m_apps.get_model.assert_called_once_with(*conf.MODEL)
@@ -700,6 +720,8 @@ class PaymentFinishViewTestCase(BaseClientMixin, TestCase):
 
         response = self._req(self._get_data(empty_fields=['cr_action']),
                              code=302)
+        if response['Location'].startswith('http://testserver'):
+            response['Location'] = response['Location'][17:]
         self.assertEqual(response['Location'], '/order/')
 
         m_apps.get_model.assert_called_once_with(*conf.MODEL)
@@ -718,6 +740,8 @@ class PaymentFinishViewTestCase(BaseClientMixin, TestCase):
         """Invalid form redirects to / if it cannot find payment."""
         response = self._req(self._get_data(empty_fields=['cr_order_number']),
                              code=302)
+        if response['Location'].startswith('http://testserver'):
+            response['Location'] = response['Location'][17:]
         self.assertEqual(response['Location'], '/')
 
         payment = Payment.objects.get(pk=self.payment.id)
