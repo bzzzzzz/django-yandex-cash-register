@@ -1,2 +1,2 @@
-django-yandex-cash-register
-===========================
+Yandex.Kassa generic app for Django
+===================================
