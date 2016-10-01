@@ -4,6 +4,14 @@ Yandex.Kassa (Яндекс.Касса) generic app for Django
 .. image:: https://travis-ci.org/bzzzzzz/django-yandex-cash-register.svg?branch=master
     :target: https://travis-ci.org/bzzzzzz/django-yandex-cash-register
 
+.. image:: https://codeclimate.com/github/bzzzzzz/django-yandex-cash-register/badges/gpa.svg
+   :target: https://codeclimate.com/github/bzzzzzz/django-yandex-cash-register
+   :alt: Code Climate
+
+.. image:: https://codeclimate.com/github/bzzzzzz/django-yandex-cash-register/badges/coverage.svg
+   :target: https://codeclimate.com/github/bzzzzzz/django-yandex-cash-register/coverage
+   :alt: Test Coverage
+
 .. note:: This application is suitable only for russian web services, so I don't
    provide English readme. If you need English docs, please contact me.
 
