@@ -19,7 +19,7 @@ Yandex.Kassa (Яндекс.Касса) generic app for Django
 Python 2.7, 3.4 и 3.5. Совместимо со всеми версиями Django>=1.8.
 
 В приложении реализован протокол интеграции, описанный в
-`официальной документации<https://tech.yandex.ru/money/doc/payment-solution/About-docpage/>`_.
+`официальной документации <https://tech.yandex.ru/money/doc/payment-solution/About-docpage/>`_
 
 Установка и настройка
 ---------------------
