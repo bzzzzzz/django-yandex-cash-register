@@ -9,3 +9,6 @@ env:
   - DJANGO_VERSION=">=1.10"
 install: pip install -q "Django$DJANGO_VERSION" lxml
 script: python yandex_cash_register/tests/runtests.py
+addons:
+    code_climate:
+        repo_token: 4075824d95cf41c31d7a059027a4ec2721dfb4f5242f192480ba6c88535aafee
