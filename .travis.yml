@@ -7,8 +7,8 @@ env:
   - DJANGO_VERSION="<1.9"
   - DJANGO_VERSION="<1.10"
   - DJANGO_VERSION=">=1.10"
-install: pip install -q "Django$DJANGO_VERSION" lxml
-script: coverage run yandex_cash_register/tests/runtests.py
+install: pip install -q "Django$DJANGO_VERSION" lxml coverage
+script: coverage run --include="yandex_cash_register/*" --omit="yandex_cash_register/migrations/*","yandex_cash_register/tests/*" yandex_cash_register/tests/runtests.py
 after_script:
   - codeclimate-test-reporter < lcov.info
 addons:
