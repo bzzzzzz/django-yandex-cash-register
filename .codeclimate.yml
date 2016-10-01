@@ -4,6 +4,10 @@ engines:
     config:
       languages:
       - python
+    exclude_fingerprints:
+    - 48c84bda43e6d374efbad461e12c7bea
+    - 97ca67773a60917eac1fcc35a7f82f31
+    - 5d41272a7cb18818780dbb6bca491f00
   pep8:
     enabled: true
 ratings:

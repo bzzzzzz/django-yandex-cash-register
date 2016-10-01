@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # coding=utf-8
 """A standalone test runner script, configuring the minimum settings
 required for django-yandex-cash-register tests to execute.

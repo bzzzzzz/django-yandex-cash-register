@@ -104,9 +104,11 @@ class BaseFormView(FormView):
             # Key order is important, they say
             response_dict = OrderedDict()
             if payment.completed is None:
-                response_dict['performedDatetime'] = payment.performed.isoformat()
+                response_dict['performedDatetime'] = \
+                    payment.performed.isoformat()
             else:
-                response_dict['performedDatetime'] = payment.completed.isoformat()
+                response_dict['performedDatetime'] = \
+                    payment.completed.isoformat()
             response_dict['code'] = 0
             response_dict['invoiceId'] = payment.invoice_id
             response_dict['shopId'] = conf.SHOP_ID
