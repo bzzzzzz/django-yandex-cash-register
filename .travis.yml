@@ -10,7 +10,7 @@ env:
 install: pip install -q "Django$DJANGO_VERSION" lxml coverage
 script: coverage run --include="yandex_cash_register/*" --omit="yandex_cash_register/migrations/*","yandex_cash_register/tests/*" yandex_cash_register/tests/runtests.py
 after_script:
-  - codeclimate-test-reporter < lcov.info
+  - codeclimate-test-reporter
 addons:
   code_climate:
     repo_token: 4075824d95cf41c31d7a059027a4ec2721dfb4f5242f192480ba6c88535aafee
