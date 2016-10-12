@@ -31,6 +31,7 @@ Python 2.7, 3.4 и 3.5. Совместимо со всеми версиями Dj
 1. Устанавливаем пакет:
 
    .. code-block:: sh
+
        pip install django-yandex-cash-register
 
 2. Добавляем приложение ``yandex_cash_register`` в ``settings.INSTALLED_APPS``:
