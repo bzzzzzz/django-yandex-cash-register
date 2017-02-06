@@ -144,6 +144,8 @@ class CheckOrderView(BaseFormView):
             payment.shop_sum = Decimal(data['shopSumAmount'])
             payment.shop_currency = data['shopSumCurrencyPaycash']
             payment.invoice_id = data['invoiceId']
+            if not payment.payment_type:
+                payment.payment_type = data['paymentType']
 
             payment.process()
         else:

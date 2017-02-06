@@ -171,6 +171,16 @@ class OrderProcessingFormTestCase(TestCase):
         self.assertIsNone(form.error_code)
         self.assertIsNone(form.error_message)
 
+    def test_all_correct_empty_payment_type(self):
+        self.payment.payment_type = ''
+        self.payment.save()
+
+        form = self._get_form()
+        self.assertTrue(form.is_valid())
+        self.assertEqual(form.payment_obj, self.payment)
+        self.assertIsNone(form.error_code)
+        self.assertIsNone(form.error_message)
+
     def test_round(self):
         form = self._get_form()
         self.assertEqual(form._round(Decimal(1001.0)), 1000)
@@ -232,6 +242,12 @@ class OrderProcessingFormTestCase(TestCase):
         self.assertFalse(form.is_valid())
         self.assertEqual(form.error_code,
                          PaymentProcessingForm.ERROR_CODE_UNKNOWN_ORDER)
+        self.assertIsNotNone(form.error_message)
+
+        form = self._get_form(paymentType=conf.PAYMENT_TYPE_ALFA_CLICK)
+        self.assertFalse(form.is_valid())
+        self.assertEqual(form.error_code,
+                         PaymentProcessingForm.ERROR_CODE_INTERNAL)
         self.assertIsNotNone(form.error_message)
 
         for field in ('orderSumAmount', 'invoiceId', 'orderSumCurrencyPaycash',

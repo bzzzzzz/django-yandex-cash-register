@@ -6,7 +6,7 @@ from hashlib import md5
 from django import forms
 from django.apps import apps
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext as _
+from django.utils.translation import ugettext_lazy, ugettext as _
 
 from .apps import YandexMoneyConfig
 from . import conf
@@ -22,9 +22,8 @@ class ShopIdForm(forms.Form):
     customerNumber = forms.CharField(min_length=1, max_length=64,
                                      widget=readonly_widget)
     paymentType = forms.CharField(
-        widget=forms.Select(choices=conf.PAYMENT_TYPE_CHOICES),
-        min_length=2, max_length=2,
-        initial=conf.PAYMENT_TYPE_YANDEX_MONEY
+        widget=forms.Select(choices=[('', ugettext_lazy('Method not chosen'))] + conf.PAYMENT_TYPE_CHOICES),
+        min_length=2, max_length=2
     )
 
     @cached_property
@@ -65,7 +64,7 @@ class ShopIdForm(forms.Form):
 
     def _clean_paymentType(self):
         payment_type = self.cleaned_data['paymentType']
-        if payment_type != str(self.payment_obj.payment_type):
+        if self.payment_obj.payment_type and payment_type != str(self.payment_obj.payment_type):
             raise forms.ValidationError(
                 _('Unknown or unsupported payment method'))
         return payment_type
@@ -98,6 +97,8 @@ class PaymentForm(ShopIdForm):
     shopFailURL = forms.URLField(initial=conf.FAIL_URL, widget=readonly_widget)
     shopSuccessURL = forms.URLField(initial=conf.SUCCESS_URL,
                                     widget=readonly_widget)
+
+    use_required_attribute = False
 
     def __init__(self, *args, **kwargs):
         super(PaymentForm, self).__init__(*args, **kwargs)
