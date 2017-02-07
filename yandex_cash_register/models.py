@@ -46,9 +46,8 @@ class Payment(models.Model):
                              default=STATE_CREATED, editable=False)
 
     payment_type = models.CharField(_('Payment method'), max_length=2,
-                                    default=conf.PAYMENT_TYPE_YANDEX_MONEY,
                                     choices=conf.BASE_PAYMENT_TYPE_CHOICES,
-                                    editable=False)
+                                    editable=False, blank=True)
     invoice_id = models.CharField(_('Invoice ID'), max_length=64,
                                   blank=True, editable=False)
     order_sum = models.DecimalField(_('Order sum'), max_digits=15,

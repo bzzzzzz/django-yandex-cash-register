@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 0.1.3\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2016-08-10 18:28+0300\n"
+"POT-Creation-Date: 2017-02-06 22:30+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Evgeny Barbashov <evgenybarbashov@yandex.ru>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -64,40 +64,44 @@ msgstr "Кошелек WebMoney"
 msgid "QiWi wallet"
 msgstr "Кошелек QiWi"
 
-#: forms.py:48
+#: forms.py:25
+msgid "Method not chosen"
+msgstr "Метод не выбран"
+
+#: forms.py:47
 #, python-format
 msgid "Cannot find payment with order ID %(order_number)s"
 msgstr "Невозможно найти платеж к заказу %(order_number)s"
 
-#: forms.py:57
+#: forms.py:56
 msgid "Unknown shop ID"
 msgstr "Неверный идентификатор магазина"
 
-#: forms.py:63
+#: forms.py:62
 msgid "Unknown customer ID"
 msgstr "Неверный идентификатор клиента"
 
-#: forms.py:70
+#: forms.py:69
 msgid "Unknown or unsupported payment method"
 msgstr "Неверный или неподдерживаемый метод оплаты"
 
-#: forms.py:111
+#: forms.py:112
 msgid "This form cannot be validated"
 msgstr "Невозможно валидировать форму"
 
-#: forms.py:175 forms.py:187
+#: forms.py:176 forms.py:188
 msgid "MD5 is incorrect"
 msgstr "Неверная MD5 сумма"
 
-#: forms.py:179
+#: forms.py:180
 msgid "No such order"
 msgstr "Нет такого заказа"
 
-#: forms.py:182
+#: forms.py:183
 msgid "Cannot process payment"
 msgstr "Невозможно обработать платеж"
 
-#: forms.py:193
+#: forms.py:194
 msgid "Sum doesn't match"
 msgstr "Сумма оплаты не совпадает"
 
@@ -145,63 +149,63 @@ msgstr "Состояние"
 msgid "Payment method"
 msgstr "Способ оплаты"
 
-#: models.py:52
+#: models.py:51
 msgid "Invoice ID"
 msgstr "Идентификатор платежа"
 
-#: models.py:54
+#: models.py:53
 msgid "Order sum"
 msgstr "Сумма к оплате"
 
-#: models.py:56
+#: models.py:55
 msgid "Received sum"
 msgstr "Полученная сумма"
 
-#: models.py:58
+#: models.py:57
 msgid "Order sum - Yandex.Kassa fee"
 msgstr "Сумма к оплате минус комиссия Яндекс.Кассы"
 
-#: models.py:62
+#: models.py:61
 msgid "Order currency"
 msgstr "Валюта заказа"
 
-#: models.py:65
+#: models.py:64
 msgid "Payment currency"
 msgstr "Валюта платежа"
 
-#: models.py:67
+#: models.py:66
 msgid "Payer code"
 msgstr "Код плательщика"
 
-#: models.py:70
+#: models.py:69
 msgid "Payer e-mail"
 msgstr "Почта плательщика"
 
-#: models.py:72
+#: models.py:71
 msgid "Payer phone"
 msgstr "Телефон плательщика"
 
-#: models.py:75
+#: models.py:74
 msgid "Created at"
 msgstr "Дата создания"
 
-#: models.py:76
+#: models.py:75
 msgid "Started at"
 msgstr "Дата начала обработки"
 
-#: models.py:77
+#: models.py:76
 msgid "Completed at"
 msgstr "Дата завершения обработки"
 
-#: models.py:80
+#: models.py:79
 #, python-format
 msgid "Payment #%(payment)s"
 msgstr "Платеж #%(payment)s"
 
-#: models.py:84
+#: models.py:83
 msgid "payment"
 msgstr "платеж"
 
-#: models.py:85
+#: models.py:84
 msgid "payments"
 msgstr "платежи"

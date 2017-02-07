@@ -5,7 +5,7 @@ from setuptools import setup
 
 setup(
     name='django-yandex-cash-register',
-    version='0.1.4',
+    version='0.1.5',
     zip_safe=False,
     description='Generic Yandex.Kassa application for Django',
     long_description=open(os.path.join(os.path.dirname(__file__),
@@ -30,6 +30,7 @@ setup(
         'Framework :: Django',
         'Framework :: Django :: 1.8',
         'Framework :: Django :: 1.9',
+        'Framework :: Django :: 1.10',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: BSD License',
         'Operating System :: OS Independent',
@@ -44,6 +45,6 @@ setup(
     ],
     install_requires=[
         'django>=1.8',
-        'lxml>=3.5',
+        'lxml>=3.5,<=3.6.4',
     ],
 )
