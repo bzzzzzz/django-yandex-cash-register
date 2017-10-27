@@ -96,7 +96,10 @@ class Payment(models.Model):
         return self.state in (self.STATE_SUCCESS, self.STATE_FAIL)
 
     def process(self):
-        if self.state != self.STATE_CREATED:
+        send_signal = False
+        if self.state == self.STATE_CREATED:
+            send_signal = True
+        elif self.state != self.STATE_PROCESSED:
             raise RuntimeError(
                 'Cannot set state to "Processing" when current state '
                 'is {}'.format(self.state))
@@ -105,7 +108,8 @@ class Payment(models.Model):
         self.state = self.STATE_PROCESSED
         self.save()
 
-        payment_process.send(sender=self)
+        if send_signal:
+            payment_process.send(sender=self)
 
     def complete(self):
         if self.state == self.STATE_FAIL and self.performed is None:

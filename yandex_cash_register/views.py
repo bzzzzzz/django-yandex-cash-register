@@ -12,6 +12,7 @@ from django.db import transaction
 from django.shortcuts import redirect
 from django.http import HttpResponse, HttpResponseNotAllowed
 from django.utils.decorators import method_decorator
+from django.utils.timezone import now
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
 from lxml import etree
@@ -138,7 +139,7 @@ class CheckOrderView(BaseFormView):
         :type data: dict[str]
         """
         logger.info('Request to check payment #%s', payment.order_id)
-        if payment.state == Payment.STATE_CREATED:
+        if payment.state in (Payment.STATE_CREATED, Payment.STATE_PROCESSED,):
             payment.payer_code = data.get('paymentPayerCode', '')
             payment.order_currency = data['orderSumCurrencyPaycash']
             payment.shop_sum = Decimal(data['shopSumAmount'])
@@ -148,11 +149,6 @@ class CheckOrderView(BaseFormView):
                 payment.payment_type = data['paymentType']
 
             payment.process()
-        elif payment.state == Payment.STATE_PROCESSED and not payment.payer_code:
-            payment.payer_code = data.get('paymentPayerCode', '')
-            payment.save()
-        elif payment.state == Payment.STATE_PROCESSED:
-            pass
         else:
             raise RuntimeError('Payment is already completed')
 

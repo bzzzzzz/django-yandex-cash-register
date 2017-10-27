@@ -52,8 +52,8 @@ class PaymentTestCase(TestCase):
         self.assertEqual(self.payment.state, Payment.STATE_PROCESSED)
         self.assertIsNotNone(self.payment.performed)
         self.assertIsNone(self.payment.completed)
-        with self.assertRaises(RuntimeError):
-            self.payment.process()
+
+        self.payment.process()
 
         self.assertEqual(self.payment.state, Payment.STATE_PROCESSED)
         self.assertIsNotNone(self.payment.performed)

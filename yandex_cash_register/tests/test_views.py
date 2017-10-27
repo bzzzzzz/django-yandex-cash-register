@@ -171,28 +171,34 @@ class CheckOrderViewTestCase(BaseViewTestCase, TestCase):
         self._check_signals(1, 0, 0)
 
     def test_check_twice(self):
-        """Valid checkOrder request fails payment if performed twice"""
+        """Valid checkOrder request not fails payment if performed twice"""
         self.test_correct()
 
         response = self._req(self._get_data())
 
         payment = Payment.objects.get(pk=self.payment.id)
 
-        self.assertIsNotNone(payment.completed)
+        self.assertIsNone(payment.completed)
         self.assertIsNotNone(payment.performed)
-        self.assertTrue(payment.is_completed)
+        self.assertTrue(payment.is_started)
+        self.assertFalse(payment.is_completed)
         self.assertFalse(payment.is_payed)
         self.assertEqual(payment.invoice_id, self.INVOICE_ID)
+        self.assertEqual(payment.state, Payment.STATE_PROCESSED)
         self.assertEqual(payment.shop_sum, Decimal('975.3'))
         self.assertEqual(payment.payer_code, '12345678901234567890')
+        self.assertEqual(payment.payment_type, conf.PAYMENT_TYPE_YANDEX_MONEY)
 
         expected_content = '<?xml version=\'1.0\' encoding=\'UTF-8\'?>\n' \
-                           '<checkOrderResponse code="200" ' \
-                           'message="Ошибка обработки заказа"/>'
+                           '<checkOrderResponse performedDatetime="{}" ' \
+                           'code="0" invoiceId="{}" ' \
+                           'shopId="{}"/>'\
+            .format(payment.performed.isoformat(), self.INVOICE_ID,
+                    TEST_SHOP_ID)
         self.assertEqual(response.content, expected_content.encode('utf-8'))
 
         # Проверяем что отправились правильные сигналы
-        self._check_signals(1, 0, 1)
+        self._check_signals(1, 0, 0)
 
     def test_invalid_form(self):
         """Invalid checkOrder request fails payment and returns error response

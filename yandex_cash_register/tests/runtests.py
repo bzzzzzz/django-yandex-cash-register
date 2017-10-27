@@ -84,5 +84,6 @@ def run_tests():
     failures = test_runner.run_tests(['yandex_cash_register.tests'])
     sys.exit(bool(failures))
 
+
 if __name__ == '__main__':
     run_tests()
