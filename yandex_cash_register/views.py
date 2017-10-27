@@ -148,6 +148,11 @@ class CheckOrderView(BaseFormView):
                 payment.payment_type = data['paymentType']
 
             payment.process()
+        elif payment.state == Payment.STATE_PROCESSED and not payment.payer_code:
+            payment.payer_code = data.get('paymentPayerCode', '')
+            payment.save()
+        elif payment.state == Payment.STATE_PROCESSED:
+            pass
         else:
             raise RuntimeError('Payment is already completed')
 
